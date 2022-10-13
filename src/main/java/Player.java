@@ -1,9 +1,7 @@
 public class Player {
     public String name;
-    public Color color;
 
-    public Player(String name, Color color) {
+    public Player(String name) {
         this.name = name;
-        this.color = color;
     }
 }

@@ -3,43 +3,67 @@ import java.util.List;
 
 public class Game {
     private final Board board;
-    private final Player player1;
-    private final Player player2;
-    private List<Move> recordedMoves;
-    private boolean hasFinished;
+    private final Player playerWhite;
+    private final Player playerBlack;
+    private final List<Move> recordedMoves;
     Result result;
-    private boolean whiteInCheck;
-    private boolean blackInCheck;
 
-    public Game(Board board, Player player1, Player player2) {
+
+    private boolean turn; //true means white turn, false means black turn
+
+    public Game(Board board, Player playerWhite, Player playerBlack) {
         this.board = board;
-        this.player1 = player1;
-        this.player2 = player2;
-        recordedMoves = new ArrayList<>();
-        hasFinished = false;
-        result = null;
+        this.playerWhite = playerWhite;
+        this.playerBlack = playerBlack;
+        this.recordedMoves = new ArrayList<>();
+        this.result = null;
+        this.turn = true;
 
     }
-    public Game(Player player1, Player player2) {
+    public Game(Player playerWhite, Player playerBlack) {
         this.board = new Board();
-        this.player1 = player1;
-        this.player2 = player2;
+        this.playerWhite = playerWhite;
+        this.playerBlack = playerBlack;
         recordedMoves = new ArrayList<>();
-        hasFinished = false;
         result = null;
+        this.turn = true;
     }
 
-    public void move(Move move) throws InvalidMoveException {
+    public void move(Move move) {
+        if ((turn && move.color == Color.BLACK) || (!turn && move.color == Color.WHITE)){
+            System.out.println("Not " + move.color.name() + "s turn");
+            return;
+        }
         if (isMoveValid(move)){
+            if ((board.positions[move.finalPosition.x][move.finalPosition.y] != null) && (board.positions[move.finalPosition.x][move.finalPosition.y].getName().equals("king"))) endGame();
+            board.addPieceInPosition(move.finalPosition.x, move.finalPosition.y, board.positions[move.initialPosition.x][move.initialPosition.y]);
+            board.deletePieceInPosition(move.initialPosition.x, move.initialPosition.y);
             recordedMoves.add(move);
+            turn = !turn;
         }
         else{
-            throw new InvalidMoveException();
+            System.out.println("INVALID MOVE, TRY AGAIN");
         }
 
     }
+    private void endGame(){
+        Player winner;
+        Color color;
+        if (turn) {
+            winner = playerWhite;
+            color = Color.WHITE;
+        }
+        else {
+            winner = playerBlack;
+            color = Color.BLACK;
+        }
+        congratulateWinner(winner, color);
+        System.exit(0);
+    }
     private boolean isMoveValid(Move move){
-        return switch (move.initialPosition.getPiece().getName()) {
+        Piece initialPiece = board.positions[move.initialPosition.x][move.initialPosition.y];
+        if (initialPiece == null || initialPiece.getColor() != move.color) return false;
+        return switch (initialPiece.getName()) {
             case "bishop" -> isBishopMoveValid(move);
             case "horse" -> isHorseMoveValid(move);
             case "king" -> isKingMoveValid(move);
@@ -50,25 +74,329 @@ public class Game {
         };
     }
     private boolean isBishopMoveValid(Move move){
-        return false;
-    }
-    private boolean isHorseMoveValid(Move move){
-        return false;
-    }
-    private boolean isKingMoveValid(Move move){
-        return false;
-    }
-    private boolean isPawnMoveValid(Move move){
-        return false;
-    }
-    private boolean isQueenMoveValid(Move move){
-        return false;
-    }
-    private boolean isRookMoveValid(Move move){
-        return false;
+        Piece[][] pieces = board.positions;
+        int initialX = move.initialPosition.x;
+        int initialY = move.initialPosition.y;
+        int finalX = move.finalPosition.x;
+        int finalY = move.finalPosition.y;
+
+        //checks boundaries
+        if (!checkBoundaries(initialX, initialY, finalX, finalY)) return false;
+
+        //checks if movement is diagonal
+        if (Math.abs(initialX-finalX) != Math.abs(initialY-finalY)) return  false;
+
+
+        String direction = "";
+        if (initialX - finalX > 0 && initialY - finalY > 0) direction = "down_left";
+        if (initialX - finalX < 0 && initialY - finalY > 0) direction = "up_left";
+        if (initialX - finalX > 0 && initialY - finalY < 0) direction = "down_right";
+        if (initialX - finalX < 0 && initialY - finalY < 0) direction = "up_right";
+
+        //checks there is not a piece from his color in position
+        Piece pieceInFinalPosition = board.positions[move.finalPosition.x][move.finalPosition.y];
+        if (pieceInFinalPosition != null && pieceInFinalPosition.getColor() == move.color) return false;
+
+        //checks if there are pieces in front of target
+        switch (direction){
+            case "down_left":
+                for (int i = initialX-1, j = initialY-1; i > finalX; i--, j--) {
+                    if (pieces[i][j] != null) return false;
+                }
+                break;
+            case "down_right":
+                for (int i = initialX-1, j = initialY+1; i > finalX; i--, j++) {
+                    if (pieces[i][j] != null) return false;
+                }
+                break;
+            case "up_left":
+                for (int i = initialX+1, j = initialY-1; i < finalX; i++, j--) {
+                    if (pieces[i][j] != null) return false;
+                }
+                break;
+            case "up_right":
+                for (int i = initialX+1, j = initialY+1; i < finalX; i++, j++) {
+                    if (pieces[i][j] != null) return false;
+                }
+                break;
+            default:
+                break;
+        }
+        return true;
     }
 
-    private void congratulateWinner(Player player){
-        System.out.println(player.color.name() + "wins, " + "congratulations " + player.name);
+
+    private boolean isHorseMoveValid(Move move){
+        int initialX = move.initialPosition.x;
+        int initialY = move.initialPosition.y;
+        int finalX = move.finalPosition.x;
+        int finalY = move.finalPosition.y;
+
+        //checks boundaries
+        if (!checkBoundaries(initialX, initialY, finalX, finalY)) return false;
+
+        if (!((Math.abs(initialX-finalX) == 1 && Math.abs(initialY-finalY) == 2) || (Math.abs(initialX-finalX) == 2 && Math.abs(initialY-finalY) == 1))) return false;
+
+        //checks there is not a piece from his color in position
+        Piece pieceInFinalPosition = board.positions[move.finalPosition.x][move.finalPosition.y];
+        if (pieceInFinalPosition != null && pieceInFinalPosition.getColor() == move.color) return false;
+        return true;
+    }
+    private boolean isKingMoveValid(Move move){
+
+        Piece[][] pieces = board.positions;
+        int initialX = move.initialPosition.x;
+        int initialY = move.initialPosition.y;
+        int finalX = move.finalPosition.x;
+        int finalY = move.finalPosition.y;
+
+        //checks boundaries
+        if (!checkBoundaries(initialX, initialY, finalX, finalY)) return false;
+
+        String direction = "";
+        if (initialX == 7 && finalX == 7 && initialY == 4 && finalY == 6) direction = "shortCastleTop";
+        else if (initialX == 0 && finalX == 0 && initialY == 4 && finalY == 6) direction = "shortCastleBottom";
+        else if (initialX == 7 && finalX == 7 && initialY == 4 && finalY == 1) direction = "longCastleTop";
+        else if (initialX == 0 && finalX == 0 && initialY == 4 && finalY == 1) direction = "longCastleBottom";
+        else if (Math.abs(initialX-finalX) <= 1 && Math.abs(initialY-finalY) <= 1) direction = "move_1";
+
+        if (direction.equals("")) return false;
+
+
+        //checks if there are pieces in front of target
+        switch (direction) {
+            case "shortCastleTop" -> {
+                if (pieces[7][5] != null || pieces[7][6] != null || !pieces[7][7].getName().equals("rook"))
+                    return false;
+                board.addPieceInPosition(7, 5, pieces[7][7]);
+                board.deletePieceInPosition(7, 7);
+            }
+            case "shortCastleBottom" -> {
+                if (pieces[0][5] != null || pieces[0][6] != null || !pieces[0][7].getName().equals("rook"))
+                    return false;
+                board.addPieceInPosition(0, 5, pieces[0][7]);
+                board.deletePieceInPosition(0, 7);
+            }
+            case "longCastleTop" -> {
+                if (pieces[7][1] != null || pieces[7][2] != null || pieces[7][3] != null || !pieces[7][0].getName().equals("rook"))
+                    return false;
+                board.addPieceInPosition(7, 3, pieces[7][0]);
+                board.deletePieceInPosition(7, 0);
+            }
+            case "longCastleBottom" -> {
+                if (pieces[0][1] != null || pieces[0][2] != null || pieces[0][3] != null || !pieces[0][0].getName().equals("rook"))
+                    return false;
+                board.addPieceInPosition(0, 3, pieces[0][0]);
+                board.deletePieceInPosition(0, 0);
+            }
+            case "move_1" -> {
+                Piece pieceInFinalPosition = board.positions[move.finalPosition.x][move.finalPosition.y];
+                if (pieceInFinalPosition != null && pieceInFinalPosition.getColor() == move.color) return false;
+            }
+            default -> {
+            }
+        }
+        return true;
+    }
+    private boolean isPawnMoveValid(Move move){
+        Piece[][] pieces = board.positions;
+        int initialX = move.initialPosition.x;
+        int initialY = move.initialPosition.y;
+        int finalX = move.finalPosition.x;
+        int finalY = move.finalPosition.y;
+
+        //checks boundaries
+        if (!checkBoundaries(initialX, initialY, finalX, finalY)) return false;
+
+        String action = "";
+        if (finalX == 0 && initialX == 1 && initialY == finalY && !turn) action = "promoteBottomMove";
+        else if (finalX == 7 && initialX == 6 && initialY == finalY && turn) action = "promoteTopMove";
+        else if (finalX == 0 && initialX == 1 && (Math.abs(initialY-finalY) == 1) && !turn) action = "promoteBottomEat";
+        else if (finalX == 7 && initialX == 6 && (Math.abs(initialY-finalY) == 1) && turn) action = "promoteTopEat";
+        else if ((initialX-finalX == -1) && initialY == finalY && turn) action = "move_1_up";
+        else if ((initialX-finalX == 1) && initialY == finalY && !turn) action = "move_1_down";
+        else if (initialX == 1 && finalX == 3 && initialY == finalY && turn) action = "move_2_up";
+        else if (initialX == 6 && finalX == 4 && initialY == finalY && !turn) action = "move_2_down";
+        else if ((initialX-finalX == -1) && (Math.abs(initialY-finalY) == 1)) action = "eats_up";
+        else if ((initialX-finalX == 1) && (Math.abs(initialY-finalY) == 1)) action = "eats_down";
+
+
+        if (action.equals("")) return false;
+
+        //checks there is not a piece from his color in position
+        Piece pieceInFinalPosition = board.positions[move.finalPosition.x][move.finalPosition.y];
+        if (pieceInFinalPosition != null && pieceInFinalPosition.getColor() == move.color) return false;
+
+        //checks if its valid
+        switch (action){
+            case "promoteBottomMove":
+            case "promoteTopMove":
+            case "move_1_up":
+            case "move_1_down":
+                if (pieces[finalX][finalY] != null) return false;
+                break;
+            case "promoteBottomEat":
+            case "promoteTopEat":
+            case "eats_up":
+            case "eats_down":
+                if (pieces[finalX][finalY] == null) return false;
+                break;
+            case "move_2_up":
+                if (pieces[finalX][finalY] != null || pieces[finalX-1][finalY] != null) return false;
+                break;
+            case "move_2_down":
+                if (pieces[finalX][finalY] != null || pieces[finalX+1][finalY] != null) return false;
+                break;
+            default:
+                break;
+        }
+        return true;
+    }
+    private boolean isQueenMoveValid(Move move){
+        Piece[][] pieces = board.positions;
+        int initialX = move.initialPosition.x;
+        int initialY = move.initialPosition.y;
+        int finalX = move.finalPosition.x;
+        int finalY = move.finalPosition.y;
+
+        //checks boundaries
+        if (!checkBoundaries(initialX, initialY, finalX, finalY)) return false;
+
+        String direction = "";
+        if (initialX - finalX > 0 && initialY == finalY) direction = "down";
+        if (initialX - finalX < 0 && initialY == finalY) direction = "up";
+        if (initialY - finalY > 0 && initialX == finalX) direction = "left";
+        if (initialY - finalY < 0 && initialX == finalX) direction = "right";
+
+        if (initialX - finalX > 0 && initialY - finalY > 0) direction = "down_left";
+        if (initialX - finalX < 0 && initialY - finalY > 0) direction = "up_left";
+        if (initialX - finalX > 0 && initialY - finalY < 0) direction = "down_right";
+        if (initialX - finalX < 0 && initialY - finalY < 0) direction = "up_right";
+
+
+        //checks if movement is diagonal or straight
+        if (!((Math.abs(initialX-finalX) == Math.abs(initialY-finalY)) || (initialX == finalX || initialY == finalY))) return  false;
+
+        //checks there is not a piece from his color in position
+        Piece pieceInFinalPosition = board.positions[move.finalPosition.x][move.finalPosition.y];
+        if (pieceInFinalPosition != null && pieceInFinalPosition.getColor() == move.color) return false;
+
+        //checks if there are pieces in front of target
+        switch (direction){
+            case "up":
+                for (int i = initialX+1; i < finalX; i++) {
+                    if (pieces[i][initialY] != null) return false;
+                }
+                break;
+            case "down":
+                for (int i = initialX-1; i > finalX; i--) {
+                    if (pieces[i][initialY] != null) return false;
+                }
+                break;
+            case "left":
+                for (int j = initialY-1; j > finalY; j--) {
+                    if (pieces[initialX][j] != null) return false;
+                }
+                break;
+            case "right":
+                for (int j = initialY+1; j < finalY; j++) {
+                    if (pieces[initialX][j] != null) return false;
+                }
+                break;
+            case "down_left":
+                for (int i = initialX-1, j = initialY-1; i > finalX; i--, j--) {
+                    if (pieces[i][j] != null) return false;
+                }
+                break;
+            case "down_right":
+                for (int i = initialX-1, j = initialY+1; i > finalX; i--, j++) {
+                    if (pieces[i][j] != null) return false;
+                }
+                break;
+            case "up_left":
+                for (int i = initialX+1, j = initialY-1; i < finalX; i++, j--) {
+                    if (pieces[i][j] != null) return false;
+                }
+                break;
+            case "up_right":
+                for (int i = initialX+1, j = initialY+1; i < finalX; i++, j++) {
+                    if (pieces[i][j] != null) return false;
+                }
+                break;
+            default:
+                break;
+        }
+        return true;
+    }
+    private boolean isRookMoveValid(Move move){
+        Piece[][] pieces = board.positions;
+        int initialX = move.initialPosition.x;
+        int initialY = move.initialPosition.y;
+        int finalX = move.finalPosition.x;
+        int finalY = move.finalPosition.y;
+
+        //checks boundaries
+        if (!checkBoundaries(initialX, initialY, finalX, finalY)) return false;
+
+        String direction = "";
+        if (initialX - finalX > 0) direction = "down";
+        if (initialX - finalX < 0) direction = "up";
+        if (initialY - finalY > 0) direction = "left";
+        if (initialY - finalY < 0) direction = "right";
+
+
+        //checks if movement is not straight
+        if (!(initialX == finalX || initialY == finalY)) return  false;
+
+        //checks there is not a piece from his color in position
+        Piece pieceInFinalPosition = board.positions[move.finalPosition.x][move.finalPosition.y];
+        if (pieceInFinalPosition != null && pieceInFinalPosition.getColor() == move.color) return false;
+
+        //checks if there are pieces in front of target
+        switch (direction){
+            case "up":
+                for (int i = initialX+1; i < finalX; i++) {
+                    if (pieces[i][initialY] != null) return false;
+                }
+                break;
+            case "down":
+                for (int i = initialX-1; i > finalX; i--) {
+                    if (pieces[i][initialY] != null) return false;
+                }
+                break;
+            case "left":
+                for (int j = initialY-1; j > finalY; j--) {
+                    if (pieces[initialX][j] != null) return false;
+                }
+                break;
+            case "right":
+                for (int j = initialY+1; j < finalY; j++) {
+                    if (pieces[initialX][j] != null) return false;
+                }
+                break;
+            default:
+                break;
+        }
+        return true;
+    }
+    private boolean checkBoundaries(int initialX, int initialY, int finalX, int finalY) {
+        return initialX <= 7 && initialX >= 0 && initialY <= 7 && initialY >= 0 && finalX <= 7 && finalX >= 0 && finalY <= 7 && finalY >= 0;
+    }
+
+    private void congratulateWinner(Player player, Color color){
+        System.out.println(color.name() + " wins, " + "congratulations " + player.name);
+    }
+
+    public void printBoard(){
+        Piece[][] pieces = board.positions;
+        for (int i = pieces.length-1; i >= 0; i--) {
+            StringBuilder row = new StringBuilder();
+            for (int j = 0; j < pieces[i].length; j++) {
+                if (pieces[i][j] != null) row.append(pieces[i][j].getName());
+                else row.append("null");
+                row.append("                  ");
+            }
+            System.out.println(row.toString());
+        }
     }
 }
