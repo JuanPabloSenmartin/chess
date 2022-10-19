@@ -8,4 +8,5 @@ public class Move {
         this.initialPosition = initialPosition;
         this.finalPosition = finalPosition;
     }
+    
 }
