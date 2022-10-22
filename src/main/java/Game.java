@@ -11,7 +11,6 @@ public class Game {
     Position whiteKingPosition;
     Position blackKingPosition;
 
-    CheckStatus checkStatus;
     private boolean turn; //true means white turn, false means black turn
 
     public Game(Board board, Player playerWhite, Player playerBlack) {
@@ -21,7 +20,6 @@ public class Game {
         this.recordedMoves = new ArrayList<>();
         this.result = null;
         this.turn = true;
-        this.checkStatus = CheckStatus.NONE;
         this.blackKingPosition = new Position(7, 4);
         this.whiteKingPosition = new Position(0, 4);
     }
@@ -32,7 +30,6 @@ public class Game {
         recordedMoves = new ArrayList<>();
         result = null;
         this.turn = true;
-        this.checkStatus = CheckStatus.NONE;
         this.blackKingPosition = new Position(7, 4);
         this.whiteKingPosition = new Position(0, 4);
     }
@@ -42,8 +39,9 @@ public class Game {
             System.out.println("Not " + move.color.name() + "s turn");
             return;
         }
+        //checkmate
+
         if (isMoveValid(move)){
-            if ((board.positions[move.finalPosition.x][move.finalPosition.y] != null) && (board.positions[move.finalPosition.x][move.finalPosition.y].getName().equals("king"))) endGame();
             board.addPieceInPosition(move.finalPosition.x, move.finalPosition.y, board.positions[move.initialPosition.x][move.initialPosition.y]);
             board.deletePieceInPosition(move.initialPosition.x, move.initialPosition.y);
             recordedMoves.add(move);
@@ -493,18 +491,46 @@ public class Game {
 
     private void manageCheckingKing(Position position){
         if (turn) {
-            if (isMoveValid(new Move(Color.WHITE, position, blackKingPosition))){
-               System.out.println("Black king in check!");
-               this.checkStatus = CheckStatus.BLACK_IN_CHECK;
+            if (willKingGetTargeted(blackKingPosition, Color.BLACK)){
+                if (doesKingHasAValidMove(Color.BLACK)){
+                    System.out.println("Black king in check!");
+                }
+                else{
+                    endGame();
+                }
             }
         }
         else{
-            if (isMoveValid(new Move(Color.BLACK, position, whiteKingPosition))){
-                System.out.println("White king in check!");
-                this.checkStatus = CheckStatus.WHITE_IN_CHECK;
+            if (willKingGetTargeted(whiteKingPosition, Color.WHITE)){
+                if (doesKingHasAValidMove(Color.WHITE)){
+                    System.out.println("White king in check!");
+                }
+                else{
+                    endGame();
+                }
             }
         }
     }
+
+    private boolean doesKingHasAValidMove(Color color) {
+        Position kingPosition;
+        if (color == Color.BLACK){
+            kingPosition = blackKingPosition;
+        }
+        else{
+            kingPosition = whiteKingPosition;
+        }
+        if (isMoveValid(new Move(color, kingPosition, new Position(kingPosition.x + 1, kingPosition.y)))) return true;
+        if (isMoveValid(new Move(color, kingPosition, new Position(kingPosition.x + 1, kingPosition.y + 1)))) return true;
+        if (isMoveValid(new Move(color, kingPosition, new Position(kingPosition.x + 1, kingPosition.y - 1)))) return true;
+        if (isMoveValid(new Move(color, kingPosition, new Position(kingPosition.x, kingPosition.y + 1)))) return true;
+        if (isMoveValid(new Move(color, kingPosition, new Position(kingPosition.x, kingPosition.y - 1)))) return true;
+        if (isMoveValid(new Move(color, kingPosition, new Position(kingPosition.x - 1, kingPosition.y)))) return true;
+        if (isMoveValid(new Move(color, kingPosition, new Position(kingPosition.x - 1, kingPosition.y + 1)))) return true;
+        if (isMoveValid(new Move(color, kingPosition, new Position(kingPosition.x - 1, kingPosition.y - 1)))) return true;
+        return false;
+    }
+
     private void congratulateWinner(Player player, Color color){
         System.out.println(color.name() + " wins, " + "congratulations " + player.name);
     }
