@@ -5,7 +5,7 @@ public class Board {
         //creates default board
         Color white = Color.WHITE;
         Color black = Color.BLACK;
-        Piece[][] positions = {
+        this.positions = new Piece[][]{
                 {new Rook(white),new Horse(white), new Bishop(white),new Queen(white),new King(white), new Bishop(white), new Horse(white),new Rook(white)},
                 {new Pawn(white),new Pawn(white),new Pawn(white),new Pawn(white),new Pawn(white),new Pawn(white),new Pawn(white),new Pawn(white)},
                 {null,null,null,null,null,null,null,null},
@@ -14,9 +14,7 @@ public class Board {
                 {null,null,null,null,null,null,null,null},
                 {new Pawn(black),new Pawn(black),new Pawn(black),new Pawn(black),new Pawn(black),new Pawn(black),new Pawn(black),new Pawn(black)},
                 {new Rook(black),new Horse(black), new Bishop(black), new Queen(black), new King(black), new Bishop(black), new Horse(black),new Rook(black)}
-
         };
-        this.positions = positions;
     }
 
     public Board(Piece[][] positions) {

@@ -8,7 +8,10 @@ public class Game {
     private final List<Move> recordedMoves;
     Result result;
 
+    Position whiteKingPosition;
+    Position blackKingPosition;
 
+    CheckStatus checkStatus;
     private boolean turn; //true means white turn, false means black turn
 
     public Game(Board board, Player playerWhite, Player playerBlack) {
@@ -18,7 +21,9 @@ public class Game {
         this.recordedMoves = new ArrayList<>();
         this.result = null;
         this.turn = true;
-
+        this.checkStatus = CheckStatus.NONE;
+        this.blackKingPosition = new Position(7, 4);
+        this.whiteKingPosition = new Position(0, 4);
     }
     public Game(Player playerWhite, Player playerBlack) {
         this.board = new Board();
@@ -27,6 +32,9 @@ public class Game {
         recordedMoves = new ArrayList<>();
         result = null;
         this.turn = true;
+        this.checkStatus = CheckStatus.NONE;
+        this.blackKingPosition = new Position(7, 4);
+        this.whiteKingPosition = new Position(0, 4);
     }
 
     public void move(Move move) {
@@ -39,6 +47,7 @@ public class Game {
             board.addPieceInPosition(move.finalPosition.x, move.finalPosition.y, board.positions[move.initialPosition.x][move.initialPosition.y]);
             board.deletePieceInPosition(move.initialPosition.x, move.initialPosition.y);
             recordedMoves.add(move);
+            manageCheckingKing(move.finalPosition);
             turn = !turn;
         }
         else{
@@ -143,7 +152,6 @@ public class Game {
         return true;
     }
     private boolean isKingMoveValid(Move move){
-
         Piece[][] pieces = board.positions;
         int initialX = move.initialPosition.x;
         int initialY = move.initialPosition.y;
@@ -196,8 +204,105 @@ public class Game {
             default -> {
             }
         }
+
+        //check is no king is getting targeted by an an opposite piece
+        if (!willKingGetTargeted(move.finalPosition, move.color)) return false;
+
+        if (turn) this.whiteKingPosition = new Position(move.finalPosition.x, move.finalPosition.y);
+        else this.blackKingPosition = new Position(move.finalPosition.x, move.finalPosition.y);
         return true;
     }
+
+    private boolean willKingGetTargeted(Position position, Color color) {
+        int x = position.x;
+        int y = position.y;
+        Piece[][] pieces = board.positions;
+        Color oppositeColor;
+        if (color == Color.WHITE) oppositeColor = Color.BLACK;
+        else oppositeColor = Color.WHITE;
+
+        //check for opposite king
+        if (color == Color.WHITE){
+            if (Math.abs(x - blackKingPosition.x) == 1 || Math.abs(y - blackKingPosition.y) == 1) return false;
+        }
+        else {
+            if (Math.abs(x - whiteKingPosition.x) == 1 || Math.abs(y - whiteKingPosition.y) == 1) return false;
+        }
+        //check for threats in diagonal
+        for (int i = x-1, j = y+1; i >= 0 && j < 8; i--, j++) {
+            Piece piece = pieces[i][j];
+            if (piece == null) continue;
+            if (piece.getColor() == oppositeColor && (piece.getName().equals("queen") || piece.getName().equals("bishop"))) return false;
+            break;
+        }
+        for (int i = x+1, j = y+1; i < 8 && j < 8; i++, j++) {
+            Piece piece = pieces[i][j];
+            if (piece == null) continue;
+            if (piece.getColor() == oppositeColor && (piece.getName().equals("queen") || piece.getName().equals("bishop"))) return false;
+            break;
+        }
+        for (int i = x+1, j = y-1; i < 8 && j >= 0; i++, j--) {
+            Piece piece = pieces[i][j];
+            if (piece == null) continue;
+            if (piece.getColor() == oppositeColor && (piece.getName().equals("queen") || piece.getName().equals("bishop"))) return false;
+            break;
+        }
+        for (int i = x-1, j = y-1; i >= 0 && j >= 0; i--, j--) {
+            Piece piece = pieces[i][j];
+            if (piece == null) continue;
+            if (piece.getColor() == oppositeColor && (piece.getName().equals("queen") || piece.getName().equals("bishop"))) return false;
+            break;
+        }
+        //check for threats in rows
+        for (int i = x+1; i < 8; i++) {
+            Piece piece = pieces[i][y];
+            if (piece == null) continue;
+            if (piece.getColor() == oppositeColor && (piece.getName().equals("queen") || piece.getName().equals("rook"))) return false;
+            break;
+        }
+        for (int i = x-1; i >= 0 ; i--) {
+            Piece piece = pieces[i][y];
+            if (piece == null) continue;
+            if (piece.getColor() == oppositeColor && (piece.getName().equals("queen") || piece.getName().equals("rook"))) return false;
+            break;
+        }
+        for (int j = y+1; j < 8; j++) {
+            Piece piece = pieces[x][j];
+            if (piece == null) continue;
+            if (piece.getColor() == oppositeColor && (piece.getName().equals("queen") || piece.getName().equals("rook"))) return false;
+            break;
+        }
+        for (int j = y-1; j >= 0; j--) {
+            Piece piece = pieces[x][j];
+            if (piece == null) continue;
+            if (piece.getColor() == oppositeColor && (piece.getName().equals("queen") || piece.getName().equals("rook"))) return false;
+            break;
+        }
+        //checks pawn threats
+        if (color == Color.WHITE) {
+            if (!checkThreat(pieces, x+1, y+1, "pawn", oppositeColor)) return false;
+            if (!checkThreat(pieces, x+1, y-1, "pawn", oppositeColor)) return false;
+        }
+        else{
+            if (!checkThreat(pieces, x-1, y+1, "pawn", oppositeColor)) return false;
+            if (!checkThreat(pieces, x-1, y-1, "pawn", oppositeColor)) return false;
+        }
+        //check horse threats
+        if (!checkThreat(pieces, x+2, y-1, "horse", oppositeColor)) return false;
+        if (!checkThreat(pieces, x+2, y+1, "horse", oppositeColor)) return false;
+        if (!checkThreat(pieces, x+1, y-2, "horse", oppositeColor)) return false;
+        if (!checkThreat(pieces, x-1, y-2, "horse", oppositeColor)) return false;
+        if (!checkThreat(pieces, x-2, y-1, "horse", oppositeColor)) return false;
+        if (!checkThreat(pieces, x-2, y+1, "horse", oppositeColor)) return false;
+        if (!checkThreat(pieces, x-1, y+2, "horse", oppositeColor)) return false;
+        if (!checkThreat(pieces, x+1, y+2, "horse", oppositeColor)) return false;
+
+        return true;
+    }
+    private boolean checkThreat(Piece[][] pieces, int x, int y, String pieceName, Color oppositeColor){
+        return pieces[x][y] == null || !checkBoundaries(x, y) || !pieces[x][y].getName().equals(pieceName) || !(pieces[x][y].getColor() == oppositeColor);
+    }
+
     private boolean isPawnMoveValid(Move move){
         Piece[][] pieces = board.positions;
         int initialX = move.initialPosition.x;
@@ -382,11 +487,27 @@ public class Game {
     private boolean checkBoundaries(int initialX, int initialY, int finalX, int finalY) {
         return initialX <= 7 && initialX >= 0 && initialY <= 7 && initialY >= 0 && finalX <= 7 && finalX >= 0 && finalY <= 7 && finalY >= 0;
     }
+    private boolean checkBoundaries(int x, int y) {
+        return x <= 7 && x >= 0 && y <= 7 && y >= 0;
+    }
 
+    private void manageCheckingKing(Position position){
+        if (turn) {
+            if (isMoveValid(new Move(Color.WHITE, position, blackKingPosition))){
+               System.out.println("Black king in check!");
+               this.checkStatus = CheckStatus.BLACK_IN_CHECK;
+            }
+        }
+        else{
+            if (isMoveValid(new Move(Color.BLACK, position, whiteKingPosition))){
+                System.out.println("White king in check!");
+                this.checkStatus = CheckStatus.WHITE_IN_CHECK;
+            }
+        }
+    }
     private void congratulateWinner(Player player, Color color){
         System.out.println(color.name() + " wins, " + "congratulations " + player.name);
     }
-
     public void printBoard(){
         Piece[][] pieces = board.positions;
         for (int i = pieces.length-1; i >= 0; i--) {

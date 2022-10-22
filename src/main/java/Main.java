@@ -11,8 +11,8 @@ public class Main {
         game.move(new Move(Color.WHITE, new Position("d1"), new Position("f3")));
         game.move(new Move(Color.BLACK, new Position("a7"), new Position("a6")));
         game.move(new Move(Color.WHITE, new Position("f3"), new Position("f7")));
-        game.move(new Move(Color.BLACK, new Position("d7"), new Position("d6")));
-        game.move(new Move(Color.WHITE, new Position("f7"), new Position("e8")));
+//        game.move(new Move(Color.BLACK, new Position("d7"), new Position("d6")));
+//        game.move(new Move(Color.WHITE, new Position("f7"), new Position("e8")));
         game.printBoard();
     }
 }
